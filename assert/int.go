@@ -2,15 +2,15 @@ package assert
 
 import "fmt"
 
-func IntBetween(value int, less int, more int) {
+func IntBetween(value int, less int, more int, msg string) {
 	condition := value >= less && value <= more
-	errMsg := fmt.Sprintf("Value must be between %d and %d, got %d", less, more, value)
+	errMsg := fmt.Sprintf("%s: Value must be between %d and %d, got %d", msg, less, more, value)
 	assert(condition, errMsg)
 }
 
-func IntNot(value int, not int) {
+func IntNot(value int, not int, msg string) {
 	condition := value != not
-	errMsg := fmt.Sprintf("Value must be different from %d, got %d", value, not)
+	errMsg := fmt.Sprintf("%s: Value must be different from %d, got %d", msg, value, not)
 	assert(condition, errMsg)
 }
 
