@@ -16,4 +16,3 @@ func WithURL(url string) Option {
 		options.url = &url
 	}
 }
-
