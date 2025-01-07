@@ -4,9 +4,9 @@ import (
 	"fmt"
 )
 
-func assert(condition bool, errMsg string) {
+func assert(condition bool, msg string) {
 	if !condition {
-		panic(errMsg)
+		panic(msg)
 	}
 }
 
@@ -18,21 +18,19 @@ func ErrNil(err error, msg string) {
 	}
 }
 
-func ErrorNotNil(err error) {
+func ErrNotNil(err error, msg string) {
 	condition := err != nil
 	if !condition {
-		panic("Error is nil")
+        assert(condition, fmt.Sprintf("%s: Err is nil", msg))
 	}
 }
 
-func NotNil(target any) {
-	condition := target != nil
-	errMsg := "Value is nil"
-	assert(condition, errMsg)
+func NotNil(ref any, msg string) {
+	condition := ref != nil
+    assert(condition,fmt.Sprintf("%s: reference is nil", msg))
 }
 
-func Nil(value any) {
-	condition := value == nil
-	errMsg := "Value is not nil"
-	assert(condition, errMsg)
+func Nil(ref any, msg string) {
+	condition := ref != nil
+    assert(condition,fmt.Sprintf("%s: reference is not nil", msg))
 }

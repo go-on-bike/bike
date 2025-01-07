@@ -3,7 +3,7 @@ package assert
 import (
 	"fmt"
 
-	"github.com/matisin/bike/validator"
+	"github.com/go-on-bike/bike/validator"
 )
 
 func NotEmptyString(s string, msg string) {
@@ -11,34 +11,34 @@ func NotEmptyString(s string, msg string) {
 	assert(condition, msg)
 }
 
-func StringDigit(value string) {
+func StringDigit(value string, msg string) {
 	condition := validator.StringDigit(value)
-	errMsg := fmt.Sprintf("String %s is not a valid digit", value)
+	errMsg := fmt.Sprintf("%s: String %s is not a valid digit", msg, value)
 	assert(condition, errMsg)
 }
 
-func StringUUID(value string) {
+func StringUUID(value string, msg string) {
 	condition := validator.StringUUID(value)
-	errMsg := fmt.Sprintf("Value must be a valid uuid, got %s", value)
+	errMsg := fmt.Sprintf("%s: Value must be a valid uuid, got %s", msg, value)
 	assert(condition, errMsg)
 }
 
-func StringAllowedValues(value string, allowedValues ...string) {
+func StringAllowedValues(value string, msg string, allowedValues ...string) {
 	condition := validator.AllowedValues(value, allowedValues...)
-	errMsg := fmt.Sprintf("Value %s is not in te allowed values %s", value, allowedValues)
+	errMsg := fmt.Sprintf("%s: Value %s is not in te allowed values %s", msg, value, allowedValues)
 	assert(condition, errMsg)
 }
 
-func StringArrayMin(strings []string, size int) {
+func StringArrayMin(strings []string, size int, msg string) {
 	arraySize := len(strings)
 	condition := arraySize >= size
-	errMsg := fmt.Sprintf("String array lenght %d is smaller than min %d", arraySize, size)
+	errMsg := fmt.Sprintf("%s: String array lenght %d is smaller than min %d", msg, arraySize, size)
 	assert(condition, errMsg)
 }
 
-func StringArrayMax(strings []string, size int) {
+func StringArrayMax(strings []string, size int, msg string) {
 	arraySize := len(strings)
 	condition := arraySize < size
-    errMsg := fmt.Sprintf("String array lenght %d bigger than max %d", arraySize, size) 
+	errMsg := fmt.Sprintf("%s: String array lenght %d bigger than max %d", msg, arraySize, size)
 	assert(condition, errMsg)
 }
