@@ -136,12 +136,13 @@ func (op *Operator) loadMigrations(path string, direction string, steps int) []M
 			return migrations[i].ID < migrations[j].ID
 		}
 		return migrations[i].ID > migrations[j].ID
-    }, "libsql migrations did not load ordered")
+	}, "libsql migrations did not load ordered")
 
 	return migrations
 }
 
 func (op *Operator) runMigrationsUp(migrations []Migration) {
+	var rollErr error
 	for _, m := range migrations {
 		tx, err := op.db.Begin()
 		assert.ErrNil(err, "Failed fo start transaction")
@@ -154,24 +155,28 @@ func (op *Operator) runMigrationsUp(migrations []Migration) {
 			}
 
 			if _, err := tx.Exec(fmt.Sprintf("%s;", s)); err != nil {
-				tx.Rollback()
+				rollErr = tx.Rollback()
+				assert.ErrNil(rollErr, "migration rollback failed")
+				// esto parece redundante porque ya sabemos que err != nil pero igual debe lanzarse el error
 				assert.ErrNil(err, fmt.Sprintf("migration %d failed", m.ID))
 			}
 		}
 
 		// Registrar migración
 		if _, err := tx.Exec(`INSERT INTO migrations (id, name) VALUES (?, ?)`, m.ID, m.Name); err != nil {
-			tx.Rollback()
+			rollErr = tx.Rollback()
+			assert.ErrNil(rollErr, "migration rollback failed")
+			// esto parece redundante porque ya sabemos que err != nil pero igual debe lanzarse el error
 			assert.ErrNil(err, fmt.Sprintf("failed to register migration %d", m.ID))
 		}
 
-		if err := tx.Commit(); err != nil {
-			assert.ErrNil(err, fmt.Sprintf("failed to commit migration %d", m.ID))
-		}
+		err = tx.Commit()
+		assert.ErrNil(err, fmt.Sprintf("failed to commit migration %d", m.ID))
 	}
 }
 
 func (op *Operator) runMigrationsDown(migrations []Migration) {
+	var rollErr error
 	for _, m := range migrations {
 		tx, err := op.db.Begin()
 		assert.ErrNil(err, "Failed fo start transaction")
@@ -184,20 +189,23 @@ func (op *Operator) runMigrationsDown(migrations []Migration) {
 			}
 
 			if _, err := tx.Exec(fmt.Sprintf("%s;", s)); err != nil {
-				tx.Rollback()
+				rollErr = tx.Rollback()
+				assert.ErrNil(rollErr, "migration rollback failed")
+				// esto parece redundante porque ya sabemos que err != nil pero igual debe lanzarse el error
 				assert.ErrNil(err, fmt.Sprintf("migration %d failed", m.ID))
 			}
 		}
 
 		// Registrar migración
 		if _, err := tx.Exec(`DELETE from MIGRATIONS WHERE id = ?`, m.ID); err != nil {
-			tx.Rollback()
+			rollErr = tx.Rollback()
+			assert.ErrNil(rollErr, "migration rollback failed")
+			// esto parece redundante porque ya sabemos que err != nil pero igual debe lanzarse el error
 			assert.ErrNil(err, fmt.Sprintf("failed to register migration %d", m.ID))
 		}
 
-		if err := tx.Commit(); err != nil {
-			assert.ErrNil(err, fmt.Sprintf("failed to commit migration %d", m.ID))
-		}
+		err = tx.Commit()
+		assert.ErrNil(err, fmt.Sprintf("failed to commit migration %d", m.ID))
 	}
 }
 
@@ -222,4 +230,3 @@ func (op *Operator) RunMigrations(path string, direction string, steps int) erro
 	op.runMigrationsDown(migrations)
 	return nil
 }
-			// op.logger.Info("statement", "s", s)
