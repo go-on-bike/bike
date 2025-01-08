@@ -1,3 +1,4 @@
+
 package libsql
 
 import (
@@ -5,7 +6,7 @@ import (
 )
 
 type Operator struct {
-	db      *sql.DB
+	DB      *sql.DB
 	options options
 }
 
