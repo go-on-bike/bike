@@ -19,7 +19,7 @@ type Migration struct {
 }
 
 func (op *Operator) initMigrations() {
-	_, err := op.db.Exec(`
+	_, err := op.DB.Exec(`
 		CREATE TABLE IF NOT EXISTS migrations (
 			id INTEGER PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -31,7 +31,7 @@ func (op *Operator) initMigrations() {
 
 func (op *Operator) findLastMigrationID() int {
 	var lastID int
-	err := op.db.QueryRow(`
+	err := op.DB.QueryRow(`
     SELECT id 
     FROM migrations 
     ORDER BY id DESC 
@@ -144,7 +144,7 @@ func (op *Operator) loadMigrations(path string, direction string, steps int) []M
 func (op *Operator) runMigrationsUp(migrations []Migration) {
 	var rollErr error
 	for _, m := range migrations {
-		tx, err := op.db.Begin()
+		tx, err := op.DB.Begin()
 		assert.ErrNil(err, "Failed fo start transaction")
 
 		// Ejecutar statements
@@ -178,7 +178,7 @@ func (op *Operator) runMigrationsUp(migrations []Migration) {
 func (op *Operator) runMigrationsDown(migrations []Migration) {
 	var rollErr error
 	for _, m := range migrations {
-		tx, err := op.db.Begin()
+		tx, err := op.DB.Begin()
 		assert.ErrNil(err, "Failed fo start transaction")
 
 		// Ejecutar statements

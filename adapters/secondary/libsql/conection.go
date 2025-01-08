@@ -7,7 +7,7 @@ import (
 )
 
 func (l *Operator) Connect() {
-	assert.Nil(l.db, "libsql cannot create new conection to db, there's one already")
+	assert.Nil(l.DB, "libsql cannot create new conection to db, there's one already")
 
 	db, err := sql.Open("libsql", *l.options.url)
 	assert.ErrNil(err, "libsql Open failed")
@@ -15,11 +15,11 @@ func (l *Operator) Connect() {
 	err = db.Ping()
 	assert.ErrNil(err, "libsql Ping failed")
 
-	l.db = db
+	l.DB = db
 }
 
 func (l *Operator) Close() error {
-	assert.NotNil(l.db, "libsql operator cannot run close on nil")
+	assert.NotNil(l.DB, "libsql operator cannot run close on nil")
 
-	return l.db.Close()
+	return l.DB.Close()
 }
