@@ -17,10 +17,12 @@ func RunMigrations(t *testing.T, down bool, steps int, firstSteps int) {
 		t.Fatal("no PWD env var")
 		return
 	}
-    
-    migrationsPath := os.Getenv("MIGRATIONS_PATH")
 
-    t.Log(migrationsPath)
+	migrationsPath := os.Getenv("MIGRATIONS_PATH")
+
+	if migrationsPath == "" {
+		migrationsPath = filepath.Join(filepath.Dir(filepath.Dir(pwd)), "migrations")
+	}
 
 	// Saltamos casos negativos de firstSteps
 	if firstSteps < 0 {
