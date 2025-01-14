@@ -1,4 +1,4 @@
-package connector
+package sqlhandler
 
 import (
 	"database/sql"
@@ -7,12 +7,12 @@ import (
 
 type Connector struct {
 	DB      *sql.DB
-	options options
+	options connOpts
 }
 
 // NewConnector crea un nuevo conector de base de datos.
 // Panics si se proporciona una URL vacía, ya que esto representa un error de programación.
-func NewConnector(opts ...Option) *Connector {
+func NewConnector(opts ...ConnOption) *Connector {
 	c := &Connector{}
 	for _, opt := range opts {
 		opt(&c.options)

@@ -1,25 +1,15 @@
 //go:build testing
-// +build testing
-package connector
+package sqlhandler
 
 import (
 	_ "github.com/tursodatabase/go-libsql"
-	"path/filepath"
 	"testing"
 )
-
-// createTestDB es una función auxiliar que nos ayuda a crear una nueva
-// base de datos de prueba para cada test
-func createTestDB(t *testing.T) string {
-	// Creamos un archivo único para cada prueba
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	return "file:" + dbPath
-}
 
 // TestNewConnector verifica la creación correcta del Connector
 func TestNewConnector(t *testing.T) {
 	t.Run("successful creation", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		if c == nil {
 			t.Fatal("expected non-nil Connector")
@@ -51,7 +41,7 @@ func TestNewConnector(t *testing.T) {
 // TestConnectorConnect verifica todas las operaciones de conexión
 func TestConnectorConnect(t *testing.T) {
 	t.Run("successful connection", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -64,7 +54,7 @@ func TestConnectorConnect(t *testing.T) {
 	})
 
 	t.Run("invalid driver", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("invalid_driver")
 		if err == nil {
@@ -74,7 +64,7 @@ func TestConnectorConnect(t *testing.T) {
 	})
 
 	t.Run("double connection attempt", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -101,7 +91,7 @@ func TestConnectorConnect(t *testing.T) {
 // TestConnectorClose verifica el comportamiento del cierre de conexiones
 func TestConnectorClose(t *testing.T) {
 	t.Run("successful close", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -115,7 +105,7 @@ func TestConnectorClose(t *testing.T) {
 	})
 
 	t.Run("close without connect panics", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		defer func() {
 			if r := recover(); r == nil {
@@ -126,7 +116,7 @@ func TestConnectorClose(t *testing.T) {
 	})
 
 	t.Run("double close", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL := CreateTestDB(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -150,7 +140,7 @@ func TestConnectorClose(t *testing.T) {
 // TestConnectorIntegration verifica el funcionamiento completo del connector
 // realizando operaciones reales en la base de datos
 func TestConnectorIntegration(t *testing.T) {
-	dbURL := createTestDB(t)
+	dbURL := CreateTestDB(t)
 	c := NewConnector(WithURL(dbURL))
 
 	err := c.Connect("libsql")

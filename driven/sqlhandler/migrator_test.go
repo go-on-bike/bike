@@ -1,6 +1,4 @@
-//go:build testing
-// +build testing
-package migrator
+package sqlhandler
 
 import (
 	"fmt"
@@ -8,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-on-bike/bike/adapters/secondary/sql/connector"
 	_ "github.com/tursodatabase/go-libsql"
 )
 
@@ -36,7 +33,7 @@ func RunMigrations(t *testing.T, down bool, steps int, firstSteps int) {
 	dbURL := fmt.Sprintf("file:%s", dbPath)
 
 	// Creamos y configuramos el connector
-	c := connector.NewConnector(connector.WithURL(dbURL))
+	c := NewConnector(WithURL(dbURL))
 
 	// Nos aseguramos de que la conexión se cierre al finalizar
 	t.Cleanup(func() {

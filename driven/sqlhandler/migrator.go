@@ -1,4 +1,4 @@
-package migrator
+package sqlhandler
 
 import (
 	"database/sql"

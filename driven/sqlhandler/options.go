@@ -1,15 +1,15 @@
-package connector
+package sqlhandler
 
-type options struct {
+type connOpts struct {
 	url *string
 }
 
-type Option func(options *options)
+type ConnOption func(options *connOpts)
 
 // WithURL establece la URL de conexión a la base de datos.
 // Panics si la URL está vacía, ya que esto representa un error de configuración.
-func WithURL(url string) Option {
-	return func(options *options) {
+func WithURL(url string) ConnOption {
+	return func(options *connOpts) {
 		if url == "" {
 			panic("database URL cannot be empty")
 		}
