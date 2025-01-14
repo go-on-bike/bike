@@ -1,3 +1,5 @@
+//go:build testing
+// +build testing
 package migrator
 
 import (
