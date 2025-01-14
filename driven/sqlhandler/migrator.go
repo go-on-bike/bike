@@ -11,14 +11,22 @@ import (
 )
 
 type Migrator struct {
-	db *sql.DB
+	DB      *sql.DB
+	options migrOpts
 }
 
-func NewMigrator(db *sql.DB) *Migrator {
+func NewMigrator(db *sql.DB, opts ...MigrOption) *Migrator {
+	m := &Migrator{}
+	for _, opt := range opts {
+		opt(&m.options)
+	}
+
 	if db == nil {
 		panic("cannot create migrator with nil database connection")
 	}
-	return &Migrator{db: db}
+    m.DB = db
+
+	return m
 }
 
 type Migration struct {
@@ -28,7 +36,7 @@ type Migration struct {
 }
 
 func (migrator *Migrator) init() error {
-	_, err := migrator.db.Exec(`
+	_, err := migrator.DB.Exec(`
         CREATE TABLE IF NOT EXISTS migrations (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
@@ -43,7 +51,7 @@ func (migrator *Migrator) init() error {
 
 func (migrator *Migrator) findLastID() (int, error) {
 	var lastID int
-	err := migrator.db.QueryRow(`
+	err := migrator.DB.QueryRow(`
         SELECT id 
         FROM migrations 
         ORDER BY id DESC 
@@ -176,7 +184,7 @@ func (migrator *Migrator) load(path string, down bool, steps int) ([]Migration, 
 
 func (migrator *Migrator) up(migrations []Migration) error {
 	for _, m := range migrations {
-		tx, err := migrator.db.Begin()
+		tx, err := migrator.DB.Begin()
 		if err != nil {
 			return fmt.Errorf("failed to start transaction: %w", err)
 		}
@@ -217,7 +225,7 @@ func (migrator *Migrator) up(migrations []Migration) error {
 
 func (migrator *Migrator) down(migrations []Migration) error {
 	for _, m := range migrations {
-		tx, err := migrator.db.Begin()
+		tx, err := migrator.DB.Begin()
 		if err != nil {
 			return fmt.Errorf("failed to start transaction: %w", err)
 		}
@@ -255,14 +263,14 @@ func (migrator *Migrator) down(migrations []Migration) error {
 	return nil
 }
 
-func (migrator *Migrator) Move(path string, down bool, steps int) error {
+func (migrator *Migrator) Move(down bool, steps int) error {
 	// Inicializar tabla de migraciones si no existe
 	if err := migrator.init(); err != nil {
 		return fmt.Errorf("failed to initialize migrations: %w", err)
 	}
 
 	// Cargar migraciones
-	migrations, err := migrator.load(path, down, steps)
+	migrations, err := migrator.load(*migrator.options.path, down, steps)
 
 	if err != nil {
 		return err

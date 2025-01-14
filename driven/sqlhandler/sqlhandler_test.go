@@ -1,14 +1,42 @@
 package sqlhandler
 
-import "testing"
+import (
+	"testing"
 
-func TestSQLHandler_Works(t *testing.T) {
-	handler := New(config)
+	_ "github.com/tursodatabase/go-libsql"
+)
 
-	// Verifica que puedo usar ambas capacidades
-	err := handler.Connect("libsql")
-	require.NoError(t, err)
+func TestSQLHandlerComposition(t *testing.T) {
+	dbURL, dbPath := GetDBLocation(t)
+	migrPATH := GetMigrationPATH(t)
 
-	err = handler.Migrate()
-	require.NoError(t, err)
+	handler := NewHandler([]ConnOption{WithURL(dbURL)}, []MigrOption{WithPATH(migrPATH)})
+
+	if err := handler.Connect("libsql"); err != nil {
+		t.Fatalf("failed to connect to database: %v", err)
+	}
+	t.Log(handler.Connector.DB)
+	t.Log(handler.Migrator.DB)
+	// t.Log(*handler.db)
+
+	// t.Log(handler.DB)
+	// t.Log(&handler.DB)
+
+	if err := handler.Move(false, 0); err != nil {
+		t.Fatalf("error on 1st migration: %v", err)
+	}
+
+	// if err := handler.Move(true, 0); err != nil {
+	// t.Fatalf("error on 2nd migration: %v", err)
+	// }
+
+	// if err := handler.Move(false, 0); err != nil {
+	// t.Fatalf("error on 3rd migration: %v", err)
+	// }
+
+	// if err := handler.Close(); err != nil {
+	// t.Fatalf("error closing database: %v", err)
+	// }
+
+	AssertDBState(t, dbPath)
 }

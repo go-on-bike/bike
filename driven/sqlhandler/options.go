@@ -16,3 +16,21 @@ func WithURL(url string) ConnOption {
 		options.url = &url
 	}
 }
+
+type migrOpts struct {
+	path *string
+}
+
+type MigrOption func(options *migrOpts)
+
+// WithPATH establece el path donde se encuentran las migraciones.
+// Panids si path está vacío.
+func WithPATH(path string) MigrOption {
+
+	return func(options *migrOpts) {
+		if path == "" {
+			panic("migration path cannot be empty")
+		}
+		options.path = &path
+	}
+}

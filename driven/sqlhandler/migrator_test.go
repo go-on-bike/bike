@@ -1,27 +1,16 @@
+//go:build testing
+
 package sqlhandler
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
 	"testing"
 
 	_ "github.com/tursodatabase/go-libsql"
 )
 
 func RunMigrations(t *testing.T, down bool, steps int, firstSteps int) {
+	migrPath := GetMigrationPATH(t)
 	// Verificamos la variable de entorno PWD que necesitamos para las rutas
-	pwd := os.Getenv("PWD")
-	if pwd == "" {
-		t.Fatal("no PWD env var")
-		return
-	}
-
-	migrationsPath := os.Getenv("MIGRATIONS_PATH")
-
-	if migrationsPath == "" {
-		migrationsPath = filepath.Join(filepath.Dir(filepath.Dir(pwd)), "migrations")
-	}
 
 	// Saltamos casos negativos de firstSteps
 	if firstSteps < 0 {
@@ -29,8 +18,7 @@ func RunMigrations(t *testing.T, down bool, steps int, firstSteps int) {
 	}
 
 	// Creamos una base de datos temporal única para cada caso de prueba
-	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("%s.db", t.Name()))
-	dbURL := fmt.Sprintf("file:%s", dbPath)
+	dbPath, dbURL := GetDBLocation(t)
 
 	// Creamos y configuramos el connector
 	c := NewConnector(WithURL(dbURL))
@@ -51,16 +39,16 @@ func RunMigrations(t *testing.T, down bool, steps int, firstSteps int) {
 	}
 
 	// Creamos el migrador usando la conexión establecida
-	m := NewMigrator(c.DB)
+	m := NewMigrator(&c.DB, WithPATH(migrPath))
 
 	// Primera fase: ejecutamos las migraciones iniciales (setup)
-	err = m.Move(migrationsPath, false, firstSteps) // false = up
+	err = m.Move(false, firstSteps) // false = up
 	if err != nil {
 		t.Fatalf("failed initial migration: %v", err)
 	}
 
 	// Segunda fase: ejecutamos el caso de fuzzing
-	err = m.Move(migrationsPath, down, steps)
+	err = m.Move(down, steps)
 	if err != nil {
 		// Si steps no es un número válido o hay otro error, verificamos el estado
 		AssertDBState(t, dbPath)
@@ -80,18 +68,4 @@ func FuzzMigrator(f *testing.F) {
 
 	// La función principal de fuzzing
 	f.Fuzz(RunMigrations)
-}
-
-// AssertDBState verifica que la base de datos está en un estado válido
-func AssertDBState(t *testing.T, dbPath string) {
-	stats, err := os.Stat(dbPath)
-	if err != nil {
-		t.Fatalf("failed to stat database: %v", err)
-	}
-	if stats.Size() == 0 {
-		t.Fatal("database is empty")
-	}
-	if stats.Size() < 8192 {
-		t.Fatal("database appears to have no migrations")
-	}
 }

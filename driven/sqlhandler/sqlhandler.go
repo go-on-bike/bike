@@ -5,8 +5,8 @@ type SQLHandler struct {
     Connector
 }
 
-func New(options ...ConnOption) *SQLHandler {
-	c := NewConnector(options...)
-	m := NewMigrator(c.DB)
+func NewHandler(connOpts []ConnOption, migrOpts []MigrOption) *SQLHandler {
+	c := NewConnector(connOpts...)
+	m := NewMigrator(c.DB, migrOpts...)
     return &SQLHandler{Connector: *c, Migrator: *m}
 }
