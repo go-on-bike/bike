@@ -8,7 +8,7 @@ Bike aims to give developers a sense of freedom, focus and speed, just as a real
 > [!NOTE]  
 > You can use bike to build any application, not just web.
 
-> !NOTE
+> [!NOTE]
 > Bike is in pre alpha state of development. expect a lot of changess. 
 
 ## Why bike?
@@ -26,7 +26,7 @@ It has many optios and of course if the developer want to use some of their tool
 
 If you build a tool, testing tool or adapter, feel free to share it with us.
 
-> !NOTE
+> [!NOTE]
 > Everything has to be tested some way or another. every code that's gets incorporated has to come with tests.
 
 ## License
