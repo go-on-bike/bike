@@ -16,8 +16,6 @@ func TestSQLHandlerComposition(t *testing.T) {
 		[]MigrOption{WithPATH(migrPATH)},
 	)
 
-	t.Logf("the migration path is %s", migrPATH)
-
 	if err := handler.Connect("libsql"); err != nil {
 		t.Fatalf("failed to connect to database: %v", err)
 	}
