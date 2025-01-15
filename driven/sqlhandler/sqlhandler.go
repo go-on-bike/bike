@@ -1,12 +1,28 @@
 package sqlhandler
 
 type SQLHandler struct {
-    Migrator
-    Connector
+	*Connector
+	*Migrator
 }
 
-func NewHandler(connOpts []ConnOption, migrOpts []MigrOption) *SQLHandler {
+func NewDataHandler(connOpts []ConnOption, migrOpts []MigrOption) *SQLHandler {
 	c := NewConnector(connOpts...)
-	m := NewMigrator(c.DB, migrOpts...)
-    return &SQLHandler{Connector: *c, Migrator: *m}
+	m := NewMigrator(nil, migrOpts...)
+	return &SQLHandler{Connector: c, Migrator: m}
+}
+
+func (h *SQLHandler) Connect(driver string) error {
+	if err := h.Connector.Connect(driver); err != nil {
+		return err
+	}
+	h.Migrator.db = h.Connector.db
+	return nil
+}
+
+func (h *SQLHandler) Close() error {
+	if err := h.Connector.Close(); err != nil {
+		return err
+	}
+	h.Migrator.db = nil
+	return nil
 }
