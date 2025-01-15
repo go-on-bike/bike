@@ -25,9 +25,14 @@ func NewMigrator(db *sql.DB, opts ...MigrOption) *Migrator {
 }
 
 func (m *Migrator) SetDB(db *sql.DB) {
-	if db == nil {
-		panic("cannot assing new db as nil reference")
-	}
+    if isConnected(m.db) {
+        panic("cannot change connected connection")
+    }
+
+    if !isConnected(db){
+        panic("cannot change connection to a closed one")
+    }
+
 	m.db = db
 }
 
@@ -184,8 +189,8 @@ func (m *Migrator) load(path string, inverse bool, steps int) ([]Migration, erro
 	return migrations, nil
 }
 
-func (m *Migrator) isConnected() bool {
-	return m.db != nil && m.db.Ping() == nil
+func isConnected(db *sql.DB) bool {
+	return db != nil && db.Ping() == nil
 }
 
 func (m *Migrator) up(migrations []Migration) error {
@@ -270,7 +275,7 @@ func (m *Migrator) down(migrations []Migration) error {
 }
 
 func (m *Migrator) Version() (int, error) {
-	if !m.isConnected() {
+	if !isConnected(m.db) {
 		return 0, fmt.Errorf("db in migrations is desconnected")
 	}
 
@@ -279,7 +284,7 @@ func (m *Migrator) Version() (int, error) {
 }
 
 func (m *Migrator) Move(steps int, inverse bool) error {
-	if !m.isConnected() {
+	if !isConnected(m.db) {
 		return fmt.Errorf("db in migrations is desconnected")
 	}
 	// Inicializar tabla de migraciones si no existe
