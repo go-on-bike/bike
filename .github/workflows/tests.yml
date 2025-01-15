@@ -21,5 +21,5 @@ jobs:
 
     - name: Run tests sqlhandler
       run: |
-          export MIGRATION_TEST_PATH=$(pwd)/driven/sqlhandler/testdata"
+          export MIGRATION_TEST_PATH="$(pwd)/driven/sqlhandler/testdata/migrations"
           go test -fuzz=. -fuzztime=2s -v ./driven/sqlhandler
