@@ -20,4 +20,4 @@ jobs:
       run: go mod download
 
     - name: Run tests sqlhandler
-      run: gotest -fuzz=. -fuzztime=2s -v ./driven/sqlhandler
+      run: go test -fuzz=. -fuzztime=2s -v ./driven/sqlhandler
