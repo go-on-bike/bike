@@ -1,25 +1,16 @@
-//go:build testing
-// +build testing
-package connector
+package sqlhandler
 
 import (
-	_ "github.com/tursodatabase/go-libsql"
-	"path/filepath"
 	"testing"
-)
 
-// createTestDB es una función auxiliar que nos ayuda a crear una nueva
-// base de datos de prueba para cada test
-func createTestDB(t *testing.T) string {
-	// Creamos un archivo único para cada prueba
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	return "file:" + dbPath
-}
+	"github.com/go-on-bike/bike/interfaces"
+	_ "github.com/tursodatabase/go-libsql"
+)
 
 // TestNewConnector verifica la creación correcta del Connector
 func TestNewConnector(t *testing.T) {
 	t.Run("successful creation", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		if c == nil {
 			t.Fatal("expected non-nil Connector")
@@ -48,23 +39,36 @@ func TestNewConnector(t *testing.T) {
 	})
 }
 
+func TestConnectorInterface(t *testing.T) {
+	t.Run("sql connector is connector", func(t *testing.T) {
+		dbURL, _ := GetDBLocation(t)
+		var c interfaces.Connector = NewConnector(WithURL(dbURL))
+		if err := c.Connect("libsql"); err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+		if err := c.Close(); err != nil {
+			t.Fatalf("unexpected error closing: %v", err)
+		}
+	})
+}
+
 // TestConnectorConnect verifica todas las operaciones de conexión
-func TestConnectorConnect(t *testing.T) {
+func TestConnect(t *testing.T) {
 	t.Run("successful connection", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
 		}
-		if c.DB == nil {
-			t.Fatal("expected non-nil DB after connection")
+		if c.db == nil {
+			t.Fatal("expected non-nil db after connection")
 		}
 		c.Close()
 	})
 
 	t.Run("invalid driver", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("invalid_driver")
 		if err == nil {
@@ -74,7 +78,7 @@ func TestConnectorConnect(t *testing.T) {
 	})
 
 	t.Run("double connection attempt", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -101,7 +105,7 @@ func TestConnectorConnect(t *testing.T) {
 // TestConnectorClose verifica el comportamiento del cierre de conexiones
 func TestConnectorClose(t *testing.T) {
 	t.Run("successful close", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -115,7 +119,7 @@ func TestConnectorClose(t *testing.T) {
 	})
 
 	t.Run("close without connect panics", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		defer func() {
 			if r := recover(); r == nil {
@@ -126,7 +130,7 @@ func TestConnectorClose(t *testing.T) {
 	})
 
 	t.Run("double close", func(t *testing.T) {
-		dbURL := createTestDB(t)
+		dbURL, _ := GetDBLocation(t)
 		c := NewConnector(WithURL(dbURL))
 		err := c.Connect("libsql")
 		if err != nil {
@@ -150,7 +154,7 @@ func TestConnectorClose(t *testing.T) {
 // TestConnectorIntegration verifica el funcionamiento completo del connector
 // realizando operaciones reales en la base de datos
 func TestConnectorIntegration(t *testing.T) {
-	dbURL := createTestDB(t)
+	dbURL, _ := GetDBLocation(t)
 	c := NewConnector(WithURL(dbURL))
 
 	err := c.Connect("libsql")
@@ -160,7 +164,7 @@ func TestConnectorIntegration(t *testing.T) {
 
 	// Configuramos el modo WAL para mejor rendimiento
 	var journalMode string
-	err = c.DB.QueryRow("PRAGMA journal_mode=WAL").Scan(&journalMode)
+	err = c.db.QueryRow("PRAGMA journal_mode=WAL").Scan(&journalMode)
 	if err != nil {
 		t.Fatalf("failed to set WAL mode: %v", err)
 	}
@@ -170,7 +174,7 @@ func TestConnectorIntegration(t *testing.T) {
 	}
 
 	// Creamos una tabla de prueba
-	_, err = c.DB.Exec(`
+	_, err = c.db.Exec(`
         CREATE TABLE test (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL
@@ -183,14 +187,14 @@ func TestConnectorIntegration(t *testing.T) {
 	// Insertamos varios registros de prueba
 	testData := []string{"Alice", "Bob", "Charlie"}
 	for _, name := range testData {
-		_, err = c.DB.Exec("INSERT INTO test (name) VALUES (?)", name)
+		_, err = c.db.Exec("INSERT INTO test (name) VALUES (?)", name)
 		if err != nil {
 			t.Fatalf("failed to insert test data '%s': %v", name, err)
 		}
 	}
 
 	// Verificamos que podemos leer todos los datos insertados
-	rows, err := c.DB.Query("SELECT name FROM test ORDER BY id")
+	rows, err := c.db.Query("SELECT name FROM test ORDER BY id")
 	if err != nil {
 		t.Fatalf("failed to query test data: %v", err)
 	}

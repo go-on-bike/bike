@@ -1,4 +1,4 @@
-package connector
+package sqlhandler
 
 import (
 	"database/sql"
@@ -6,13 +6,13 @@ import (
 )
 
 type Connector struct {
-	DB      *sql.DB
-	options options
+	db      *sql.DB
+	options connOpts
 }
 
 // NewConnector crea un nuevo conector de base de datos.
 // Panics si se proporciona una URL vacía, ya que esto representa un error de programación.
-func NewConnector(opts ...Option) *Connector {
+func NewConnector(opts ...ConnOption) *Connector {
 	c := &Connector{}
 	for _, opt := range opts {
 		opt(&c.options)
@@ -26,7 +26,7 @@ func NewConnector(opts ...Option) *Connector {
 // Connect establece una conexión con la base de datos usando el driver especificado.
 // Retorna un error si ya existe una conexión o si hay problemas al conectar.
 func (c *Connector) Connect(driver string) error {
-	if c.DB != nil {
+	if c.db != nil {
 		return fmt.Errorf("cannot create new connection: database connection already exists")
 	}
 
@@ -40,21 +40,21 @@ func (c *Connector) Connect(driver string) error {
 		return fmt.Errorf("failed to ping database with driver %s: %w", driver, err)
 	}
 
-	c.DB = db
+	c.db = db
 	return nil
 }
 
 // Close cierra la conexión a la base de datos.
 // Panic si se intenta cerrar una conexión nil, ya que esto representa un error de programación.
 func (c *Connector) Close() error {
-	if c.DB == nil {
+	if c.db == nil {
 		panic("cannot close: database connection is nil")
 	}
-	err := c.DB.Close()
+	err := c.db.Close()
 	if err != nil {
 		return err
 	}
 
-	c.DB = nil
+	c.db = nil
 	return nil
 }
