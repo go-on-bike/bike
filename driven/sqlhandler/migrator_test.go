@@ -1,6 +1,7 @@
 package sqlhandler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-on-bike/bike/interfaces"
@@ -14,9 +15,11 @@ func RunMigrations(t *testing.T, inverse bool, steps int, firstSteps int) {
 	}
 
 	// Creamos una base de datos temporal única para cada caso de prueba
-	dbURL, dbPath := GetDBLocation(t)
+	dbURL, dbPath := GenTestLibsqlDBPath(t)
 	migrPath := GetMigrationPATH(t)
-	c := NewConnector(WithURL(dbURL))
+
+	stderr := &strings.Builder{}
+	c := NewConnector(stderr, WithURL(dbURL))
 
 	// Nos aseguramos de que la conexión se cierre al finalizar
 	t.Cleanup(func() {
@@ -34,7 +37,7 @@ func RunMigrations(t *testing.T, inverse bool, steps int, firstSteps int) {
 	}
 
 	// Creamos el migrador usando la conexión establecida
-	m := NewMigrator(c.db, WithPATH(migrPath))
+	m := NewMigrator(stderr, c.db, WithPATH(migrPath))
 
 	// Primera fase: ejecutamos las migraciones iniciales (setup)
 	err = m.Move(firstSteps, false) // false = up
@@ -56,7 +59,7 @@ func RunMigrations(t *testing.T, inverse bool, steps int, firstSteps int) {
 
 func FuzzMigrator(f *testing.F) {
 	// Mantenemos los mismos casos semilla que son útiles para probar diferentes escenarios
-f.Add(false, 3, 0) // up, 3 steps
+	f.Add(false, 3, 0) // up, 3 steps
 	f.Add(true, 1, 0)  // down, 1 step
 	f.Add(false, 2, 3) // up, 2 steps con first steps
 	f.Add(false, 0, 0) // up, 0 steps
@@ -67,9 +70,10 @@ f.Add(false, 3, 0) // up, 3 steps
 
 func TestMigratorInterface(t *testing.T) {
 	t.Run("sql migrator is migrator", func(t *testing.T) {
-		dbURL, dbPath := GetDBLocation(t)
+		dbURL, dbPath := GenTestLibsqlDBPath(t)
+		stderr := &strings.Builder{}
 
-		c := NewConnector(WithURL(dbURL))
+		c := NewConnector(stderr, WithURL(dbURL))
 
 		if err := c.Connect("libsql"); err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
@@ -93,18 +97,19 @@ func TestMigratorInterface(t *testing.T) {
 		}
 
 		migrPath := GetMigrationPATH(t)
-		var m interfaces.Migrator = NewMigrator(c.db, WithPATH(migrPath))
+
+		var m interfaces.Migrator = NewMigrator(stderr, c.db, WithPATH(migrPath))
 
 		if err := m.Move(0, false); err != nil {
 			t.Fatalf("failed initial migration: %v", err)
 		}
 
-        version, err := m.Version()
-        if err != nil {
-            t.Fatalf("failed to get version of db")
-        }
+		version, err := m.Version()
+		if err != nil {
+			t.Fatalf("failed to get version of db")
+		}
 
-        t.Logf("version of db is %d", version)
+		t.Logf("version of db is %d", version)
 
 		// Verificamos el estado final de la base de datos
 		AssertDBState(t, dbPath)
