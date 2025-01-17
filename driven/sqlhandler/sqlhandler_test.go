@@ -1,17 +1,21 @@
 package sqlhandler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-on-bike/bike/interfaces"
 	_ "github.com/tursodatabase/go-libsql"
 )
 
-func TestSQLHandlerComposition(t *testing.T) {
-	dbURL, dbPath := GetDBLocation(t)
+func TestSQLHandlerIsDataHandler(t *testing.T) {
+	dbURL, dbPath := GenTestLibsqlDBPath(t)
 	migrPATH := GetMigrationPATH(t)
 
+	stderr := &strings.Builder{}
+
 	var handler interfaces.DataHandler = NewDataHandler(
+		stderr,
 		[]ConnOption{WithURL(dbURL)},
 		[]MigrOption{WithPATH(migrPATH)},
 	)

@@ -23,3 +23,6 @@ jobs:
       run: go test -fuzz=. -fuzztime=2s -v ./driven/sqlhandler
       env:
         MIGRATION_TEST_PATH: ${{ github.workspace }}/driven/sqlhandler/testdata/migrations
+
+    - name: Run tests logformatter
+      run: go test -v ./logformatter

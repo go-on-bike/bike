@@ -1,17 +1,23 @@
 package sqlhandler
 
-import "database/sql"
+import (
+	"database/sql"
+	"io"
+)
 
 type SQLHandler struct {
 	*Connector
 	*Migrator
+	stderr io.Writer
 }
 
-func NewDataHandler(connOpts []ConnOption, migrOpts []MigrOption) *SQLHandler {
-	c := NewConnector(connOpts...)
-	m := NewMigrator(nil, migrOpts...)
+const SigSQLHandler string = "sqlhandler"
 
-	return &SQLHandler{Connector: c, Migrator: m}
+func NewDataHandler(stderr io.Writer, connOpts []ConnOption, migrOpts []MigrOption) *SQLHandler {
+	c := NewConnector(stderr, connOpts...)
+	m := NewMigrator(stderr, nil, migrOpts...)
+
+	return &SQLHandler{stderr: stderr, Connector: c, Migrator: m}
 }
 
 func (h *SQLHandler) Connect(driver string) error {
@@ -31,10 +37,6 @@ func (h *SQLHandler) Close() error {
 }
 
 func (h *SQLHandler) SetDB(db *sql.DB) {
-    h.Connector.SetDB(db)
-    h.Migrator.SetDB(db)
-}
-
-func (h *SQLHandler) DB() *sql.DB {
-    return h.Connector.DB()
+	h.Connector.SetDB(db)
+	h.Migrator.SetDB(db)
 }

@@ -1,6 +1,7 @@
 package sqlhandler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/go-on-bike/bike/interfaces"
@@ -10,8 +11,10 @@ import (
 // TestNewConnector verifica la creación correcta del Connector
 func TestNewConnector(t *testing.T) {
 	t.Run("successful creation", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		dbURL, _ := GenTestLibsqlDBPath(t)
+		stderr := &strings.Builder{}
+
+		c := NewConnector(stderr, WithURL(dbURL))
 		if c == nil {
 			t.Fatal("expected non-nil Connector")
 		}
@@ -21,28 +24,30 @@ func TestNewConnector(t *testing.T) {
 	})
 
 	t.Run("empty url panics", func(t *testing.T) {
+		stderr := &strings.Builder{}
 		defer func() {
 			if r := recover(); r == nil {
 				t.Fatal("expected panic with empty URL")
 			}
 		}()
-		NewConnector(WithURL(""))
+		NewConnector(stderr, WithURL(""))
 	})
 
-	t.Run("no options panics", func(t *testing.T) {
+	t.Run("nil stderr panics", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
-				t.Fatal("expected panic with no options")
+				t.Fatal("expected panic with empty URL")
 			}
 		}()
-		NewConnector()
+		NewConnector(nil, WithURL(""))
 	})
 }
 
 func TestConnectorInterface(t *testing.T) {
 	t.Run("sql connector is connector", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		var c interfaces.Connector = NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		conn, _ := NewTestConnector(t, stderr)
+		var c interfaces.Connector = conn
 		if err := c.Connect("libsql"); err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
 		}
@@ -55,8 +60,8 @@ func TestConnectorInterface(t *testing.T) {
 // TestConnectorConnect verifica todas las operaciones de conexión
 func TestConnect(t *testing.T) {
 	t.Run("successful connection", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
 		err := c.Connect("libsql")
 		if err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
@@ -68,8 +73,9 @@ func TestConnect(t *testing.T) {
 	})
 
 	t.Run("invalid driver", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
 		err := c.Connect("invalid_driver")
 		if err == nil {
 			t.Fatal("expected error with invalid driver")
@@ -78,8 +84,9 @@ func TestConnect(t *testing.T) {
 	})
 
 	t.Run("double connection attempt", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
 		err := c.Connect("libsql")
 		if err != nil {
 			t.Fatalf("unexpected error on first connect: %v", err)
@@ -94,7 +101,9 @@ func TestConnect(t *testing.T) {
 	})
 
 	t.Run("malformed url", func(t *testing.T) {
-		c := NewConnector(WithURL("invalid://url"))
+		stderr := &strings.Builder{}
+
+		c := NewConnector(stderr, WithURL("invalid://url"))
 		err := c.Connect("libsql")
 		if err == nil {
 			t.Fatal("expected error with invalid URL")
@@ -105,8 +114,9 @@ func TestConnect(t *testing.T) {
 // TestConnectorClose verifica el comportamiento del cierre de conexiones
 func TestConnectorClose(t *testing.T) {
 	t.Run("successful close", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
 		err := c.Connect("libsql")
 		if err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
@@ -119,8 +129,9 @@ func TestConnectorClose(t *testing.T) {
 	})
 
 	t.Run("close without connect panics", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
 		defer func() {
 			if r := recover(); r == nil {
 				t.Fatal("expected panic when closing without connection")
@@ -129,9 +140,102 @@ func TestConnectorClose(t *testing.T) {
 		c.Close()
 	})
 
+	t.Run("DB() without connect panics", func(t *testing.T) {
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic when getting DB without connection")
+			}
+		}()
+		c.DB()
+	})
+
+	t.Run("checking functionality of IsConnected", func(t *testing.T) {
+		stderr := &strings.Builder{}
+		connOpen, _ := NewTestConnector(t, stderr)
+		connected := connOpen.IsConnected()
+		if connected {
+			t.Fatal("connected should false")
+		}
+
+		err := connOpen.Connect("libsql")
+		if err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+
+		connected = connOpen.IsConnected()
+		if !connected {
+			t.Fatal("connected should true")
+		}
+
+		connOpen.Close()
+		connected = connOpen.IsConnected()
+		if connected {
+			t.Fatal("connected should false")
+		}
+	})
+
+	t.Run("SetDB with nil panics", func(t *testing.T) {
+		stderr := &strings.Builder{}
+		connOpen, _ := NewTestConnector(t, stderr)
+		otherConn, _ := NewTestConnector(t, stderr)
+		err := connOpen.Connect("libsql")
+		if err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+
+		err = otherConn.Connect("libsql")
+		if err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic on SetDB with open connection")
+			}
+		}()
+		connOpen.SetDB(otherConn.db)
+	})
+
+	t.Run("SetDB with new connection opens works", func(t *testing.T) {
+		stderr := &strings.Builder{}
+
+		conn, _ := NewTestConnector(t, stderr)
+		otherConn, _ := NewTestConnector(t, stderr)
+
+		err := otherConn.Connect("libsql")
+		if err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+
+		conn.SetDB(otherConn.db)
+	})
+
+	t.Run("SetDB with new connection closed panics", func(t *testing.T) {
+		stderr := &strings.Builder{}
+		conn, _ := NewTestConnector(t, stderr)
+		otherConn, _ := NewTestConnector(t, stderr)
+
+		err := otherConn.Connect("libsql")
+		if err != nil {
+			t.Fatalf("unexpected error connecting: %v", err)
+		}
+		otherConn.db.Close()
+
+		defer func() {
+			if r := recover(); r == nil {
+				t.Fatal("expected panic on SetDB with open connection")
+			}
+		}()
+		conn.SetDB(otherConn.db)
+	})
+
 	t.Run("double close", func(t *testing.T) {
-		dbURL, _ := GetDBLocation(t)
-		c := NewConnector(WithURL(dbURL))
+		stderr := &strings.Builder{}
+		c, _ := NewTestConnector(t, stderr)
+
 		err := c.Connect("libsql")
 		if err != nil {
 			t.Fatalf("unexpected error connecting: %v", err)
@@ -154,8 +258,8 @@ func TestConnectorClose(t *testing.T) {
 // TestConnectorIntegration verifica el funcionamiento completo del connector
 // realizando operaciones reales en la base de datos
 func TestConnectorIntegration(t *testing.T) {
-	dbURL, _ := GetDBLocation(t)
-	c := NewConnector(WithURL(dbURL))
+	stderr := &strings.Builder{}
+	c, _ := NewTestConnector(t, stderr)
 
 	err := c.Connect("libsql")
 	if err != nil {

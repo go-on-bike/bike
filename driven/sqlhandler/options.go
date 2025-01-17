@@ -1,8 +1,6 @@
 package sqlhandler
 
-type connOpts struct {
-	url *string
-}
+import "fmt"
 
 type ConnOption func(options *connOpts)
 
@@ -11,14 +9,10 @@ type ConnOption func(options *connOpts)
 func WithURL(url string) ConnOption {
 	return func(options *connOpts) {
 		if url == "" {
-			panic("database URL cannot be empty")
+            panic(fmt.Sprintf("%s: database URL cannot be empty", SigConn))
 		}
 		options.url = &url
 	}
-}
-
-type migrOpts struct {
-	path *string
 }
 
 type MigrOption func(options *migrOpts)
@@ -26,10 +20,9 @@ type MigrOption func(options *migrOpts)
 // WithPATH establece el path donde se encuentran las migraciones.
 // Panids si path está vacío.
 func WithPATH(path string) MigrOption {
-
 	return func(options *migrOpts) {
 		if path == "" {
-			panic("migration path cannot be empty")
+            panic(fmt.Sprintf("%s: migration path cannot be empty", SigConn))
 		}
 		options.path = &path
 	}

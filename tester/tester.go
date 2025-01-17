@@ -1,10 +1,12 @@
-package sqlhandler
+package tester
 
 import (
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/go-on-bike/bike/driven/sqlhandler"
 )
 
 // CreateTestDB es una función auxiliar que nos ayuda a crear una nueva
@@ -44,8 +46,8 @@ func AssertDBState(t *testing.T, dbPath string) {
 	}
 }
 
-func NewTestConnector(t *testing.T, stderr io.Writer) (*Connector, string) {
+func NewTestConnector(t *testing.T, stderr io.Writer) (*sqlhandler.Connector, string) {
 	dbURL, dbPath := GenTestLibsqlDBPath(t)
-	c := NewConnector(stderr, WithURL(dbURL))
+	c := sqlhandler.NewConnector(stderr, sqlhandler.WithURL(dbURL))
 	return c, dbPath
 }
