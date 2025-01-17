@@ -1,6 +1,7 @@
 package sqlhandler
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,7 +9,7 @@ import (
 
 // CreateTestDB es una función auxiliar que nos ayuda a crear una nueva
 // base de datos vacia de prueba para cada test
-func GetDBLocation(t *testing.T) (dbURL string, dbPath string) {
+func GenTestLibsqlDBPath(t *testing.T) (dbURL string, dbPath string) {
 	// Creamos un archivo único para cada prueba
 	path := filepath.Join(t.TempDir(), "test.db")
 	return "file:" + path, path
@@ -41,4 +42,10 @@ func AssertDBState(t *testing.T, dbPath string) {
 	if stats.Size() < 8192 {
 		t.Fatal("database appears to have no migrations")
 	}
+}
+
+func NewTestConnector(t *testing.T, stderr io.Writer) (*Connector, string) {
+	dbURL, dbPath := GenTestLibsqlDBPath(t)
+	c := NewConnector(stderr, WithURL(dbURL))
+	return c, dbPath
 }
