@@ -37,7 +37,6 @@ func TestLogFormatter_Integration(t *testing.T) {
     time.Sleep(time.Millisecond * 100)
 
 	logs := stderr.String()
-	t.Logf(logs)
 	if len(logs) == 0 {
 		t.Errorf("final stream is empty")
 	}
