@@ -21,10 +21,12 @@ func TestLogFormatter_Integration(t *testing.T) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-
 	// Run two operations: one in a different go routine
 	go func() {
-		formatter.Start(ctx)
+		err := formatter.Start(ctx)
+		if err != nil {
+			t.Errorf("start failed: %v", err)
+		}
 	}()
 
 	connecter, _ := tester.NewTestConnector(t, formatter)
@@ -34,7 +36,7 @@ func TestLogFormatter_Integration(t *testing.T) {
 	connecter.IsConnected()
 	errChan <- connecter.Close()
 	connecter.IsConnected()
-    time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 100)
 
 	logs := stderr.String()
 	if len(logs) == 0 {
@@ -53,7 +55,7 @@ func TestLogFormatter_Integration(t *testing.T) {
 			continue
 		}
 
-        // Verificsterrar campos esperados en el JSON
+		// Verificsterrar campos esperados en el JSON
 		if _, ok := logEntry["time"]; !ok {
 			t.Errorf("línea %d no tiene campo 'time'", i+1)
 		}
