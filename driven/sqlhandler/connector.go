@@ -60,15 +60,19 @@ func (c *Connector) Close() error {
 }
 
 func (c *Connector) SetDB(db *sql.DB) {
-    if isConnected(c.db) {
-        panic("cannot change connected connection")
-    }
+	if isConnected(c.db) {
+		panic("cannot change connected connection")
+	}
 
-    if !isConnected(db){
-        panic("cannot change connection to a closed one")
-    }
+	if !isConnected(db) {
+		panic("cannot change connection to a closed one")
+	}
 
 	c.db = db
+}
+
+func (h *Connector) IsConnected() bool {
+	return isConnected(h.db)
 }
 
 func (c *Connector) DB() (db *sql.DB) {
