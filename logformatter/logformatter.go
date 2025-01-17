@@ -74,6 +74,7 @@ func (lf *LogFormatter) Start(ctx context.Context) error {
 			if err == nil {
 				continue
 			}
+            // aca se puede agregar mas tags pero hay que pensar bien de que antes.
 			lf.logger.Error(err.Error())
 		case msg := <-lf.msgChan:
 			// Eliminamos los saltos de línea al final
@@ -83,6 +84,7 @@ func (lf *LogFormatter) Start(ctx context.Context) error {
 			}
 			// Solo logeamos si quedó algo después de limpiar los saltos de línea
 			if msgLen > 0 {
+            // aca se puede agregar mas tags pero hay que pensar bien de que y como antes.
 				lf.logger.Info(string(msg[:msgLen]))
 			}
 		case <-ctx.Done():

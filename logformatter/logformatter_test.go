@@ -29,6 +29,9 @@ func TestLogFormatter_Integration(t *testing.T) {
 		}
 	}()
 
+    // a simulation of a normal interacion of libsql handler connecter.
+
+    // formatter entra como stderr al connecter y connecter escribira ahi.
 	connecter, _ := tester.NewTestConnector(t, formatter)
 	errChan <- connecter.Connect("libsql")
 	errChan <- connecter.Connect("libsql")
