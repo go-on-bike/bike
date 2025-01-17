@@ -26,4 +26,3 @@ jobs:
 
     - name: Run tests logformatter
       run: go test -v ./logformatter
-      env:
