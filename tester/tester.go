@@ -1,12 +1,9 @@
 package tester
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/go-on-bike/bike/driven/sqlhandler"
 )
 
 // CreateTestDB es una función auxiliar que nos ayuda a crear una nueva
@@ -44,10 +41,4 @@ func AssertDBState(t *testing.T, dbPath string) {
 	if stats.Size() < 8192 {
 		t.Fatal("database appears to have no migrations")
 	}
-}
-
-func NewTestConnector(t *testing.T, stderr io.Writer) (*sqlhandler.Connector, string) {
-	dbURL, dbPath := GenTestLibsqlDBPath(t)
-	c := sqlhandler.NewConnector(stderr, sqlhandler.WithURL(dbURL))
-	return c, dbPath
 }
