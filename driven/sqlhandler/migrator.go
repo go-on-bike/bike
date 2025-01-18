@@ -3,7 +3,6 @@ package sqlhandler
 import (
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,47 +10,9 @@ import (
 	"strings"
 )
 
-type migrOpts struct {
-	path *string
-}
-
-type Migrator struct {
-	stderr  io.Writer
-	db      *sql.DB
-	options migrOpts
-}
-
-const SigMigr string = "sqlhandler migrator"
-
-func NewMigrator(stderr io.Writer, db *sql.DB, opts ...MigrOption) *Migrator {
-	if stderr == nil {
-		panic(fmt.Sprintf("%s: stderr cannot be nil", SigMigr))
-	}
-
-	m := &Migrator{stderr: stderr, db: db}
-	for _, opt := range opts {
-		opt(&m.options)
-	}
-
-	return m
-}
-
-func (m *Migrator) SetDB(db *sql.DB) {
-	fmt.Fprintf(m.stderr, "%s: setting new db", SigMigr)
-	if isConnected(m.db) {
-		panic(fmt.Sprintf("%s: cannot change connected connection", SigMigr))
-	}
-
-	if !isConnected(db) {
-		panic(fmt.Sprintf("%s: cannot change connection to a closed one", SigMigr))
-	}
-
-	m.db = db
-}
-
-func (m *Migrator) init() error {
-	fmt.Fprintf(m.stderr, "%s: executing a query in init", SigMigr)
-	_, err := m.db.Exec(`
+func (h *sqlHandler) initMigrations() error {
+	fmt.Fprintf(h.stderr, "%s init migrations: executing a query in init", Sig)
+	_, err := h.db.Exec(`
         CREATE TABLE IF NOT EXISTS migrations (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
@@ -59,15 +20,15 @@ func (m *Migrator) init() error {
         )
     `)
 	if err != nil {
-		return fmt.Errorf("%s: failed to initialize migrations table: %w", SigMigr, err)
+		return fmt.Errorf("%s init migrations: failed to initialize migrations table: %w", Sig, err)
 	}
 	return nil
 }
 
-func (m *Migrator) findLastID() (int, error) {
+func (h *sqlHandler) findMigrationLastID() (int, error) {
 	var lastID int
-	fmt.Fprintf(m.stderr, "%s: executing query row in find last id", SigMigr)
-	err := m.db.QueryRow(`
+	fmt.Fprintf(h.stderr, "%s find last migration id: executing query row in find last id", Sig)
+	err := h.db.QueryRow(`
         SELECT id 
         FROM migrations 
         ORDER BY id DESC 
@@ -78,7 +39,7 @@ func (m *Migrator) findLastID() (int, error) {
 		return 0, nil
 	}
 	if err != nil {
-		return 0, fmt.Errorf("%s: failed to find last migration ID: %w", SigMigr, err)
+		return 0, fmt.Errorf("%s find last migration id: failed to find last migration ID: %w", Sig, err)
 	}
 	return lastID, nil
 }
@@ -89,21 +50,21 @@ type Migration struct {
 	SQL  string
 }
 
-func (m *Migrator) load(path string, inverse bool, steps int) ([]Migration, error) {
+func (h *sqlHandler) load(path string, inverse bool, steps int) ([]Migration, error) {
 	direction := map[bool]string{true: "down", false: "up"}
 
 	if steps < 0 {
-		return nil, fmt.Errorf("%s: steps cannot be negative, got %d", SigMigr, steps)
+		return nil, fmt.Errorf("%s load: steps cannot be negative, got %d", Sig, steps)
 	}
 
-	lastID, err := m.findLastID()
+	lastID, err := h.findMigrationLastID()
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to find last migration ID: %w", SigMigr, err)
+		return nil, fmt.Errorf("%s load: failed to find last migration ID: %w", Sig, err)
 	}
 
 	filenames, err := filepath.Glob(filepath.Join(path, fmt.Sprintf("*.%s.sql", direction[inverse])))
 	if err != nil {
-		return nil, fmt.Errorf("%s: failed to get migration files: %w", SigMigr, err)
+		return nil, fmt.Errorf("%s load: failed to get migration files: %w", Sig, err)
 	}
 
 	maxIDs := len(filenames)
@@ -122,7 +83,7 @@ func (m *Migrator) load(path string, inverse bool, steps int) ([]Migration, erro
 	}
 
 	if steps < 0 {
-		return nil, fmt.Errorf("%s: step calculation failed, got %d", SigMigr, steps)
+		return nil, fmt.Errorf("%s load: step calculation failed, got %d", Sig, steps)
 	}
 
 	// Calcular rangos de migración
@@ -151,15 +112,15 @@ func (m *Migrator) load(path string, inverse bool, steps int) ([]Migration, erro
 		nameParts := strings.Split(noSuffix, "_")
 
 		if len(nameParts) < 2 {
-			return nil, fmt.Errorf("%s: invalid migration filename format: %s", SigMigr, filename)
+			return nil, fmt.Errorf("%s load: invalid migration filename format: %s", Sig, filename)
 		}
 
 		id, err := strconv.Atoi(nameParts[0])
 		if err != nil {
-			return nil, fmt.Errorf("%s: invalid migration ID in filename %s: %w", SigMigr, filename, err)
+			return nil, fmt.Errorf("%s load: invalid migration ID in filename %s: %w", Sig, filename, err)
 		}
 		if id == 0 {
-			return nil, fmt.Errorf("%s: migration ID cannot be 0 in file: %s", SigMigr, filename)
+			return nil, fmt.Errorf("%s load: migration ID cannot be 0 in file: %s", Sig, filename)
 		}
 
 		if id < fromID || id > toID {
@@ -169,20 +130,20 @@ func (m *Migrator) load(path string, inverse bool, steps int) ([]Migration, erro
 		// Leer contenido del archivo SQL
 		content, err := os.ReadFile(filename)
 		if err != nil {
-			return nil, fmt.Errorf("%s: failed to read migration file %s: %w", SigMigr, filename, err)
+			return nil, fmt.Errorf("%s load: failed to read migration file %s: %w", Sig, filename, err)
 		}
 		if len(content) == 0 {
-			return nil, fmt.Errorf("%s: migration file is empty: %s", SigMigr, filename)
+			return nil, fmt.Errorf("%s load: migration file is empty: %s", Sig, filename)
 		}
 
 		// Verificar que existe el archivo opuesto
 		counterpartPath := filepath.Join(path, fmt.Sprintf("%s.%s.sql", noSuffix, direction[!inverse]))
 		counterpartContent, err := os.ReadFile(counterpartPath)
 		if err != nil {
-			return nil, fmt.Errorf("%s: failed to read counterpart file for %s: %w", SigMigr, filename, err)
+			return nil, fmt.Errorf("%s load: failed to read counterpart file for %s: %w", Sig, filename, err)
 		}
 		if len(counterpartContent) == 0 {
-			return nil, fmt.Errorf("%s: counterpart migration file is empty: %s", SigMigr, counterpartPath)
+			return nil, fmt.Errorf("%s load: counterpart migration file is empty: %s", Sig, counterpartPath)
 		}
 
 		index := id - fromID
@@ -208,11 +169,11 @@ func isConnected(db *sql.DB) bool {
 	return db != nil && db.Ping() == nil
 }
 
-func (m *Migrator) up(migrations []Migration) error {
+func (h *sqlHandler) up(migrations []Migration) error {
 	for _, mig := range migrations {
-		tx, err := m.db.Begin()
+		tx, err := h.db.Begin()
 		if err != nil {
-			return fmt.Errorf("%s: failed to start transaction: %w", SigMigr, err)
+			return fmt.Errorf("%s up: failed to start transaction: %w", Sig, err)
 		}
 
 		// Ejecutar statements
@@ -226,9 +187,9 @@ func (m *Migrator) up(migrations []Migration) error {
 				rollErr := tx.Rollback()
 				if rollErr != nil {
 					// Aquí retornamos ambos errores ya que es crítico saber si falló tanto la migración como el rollback
-					return fmt.Errorf("%s: migration %d failed: %v, additionally rollback failed: %v", SigMigr, mig.ID, err, rollErr)
+					return fmt.Errorf("%s up: migration %d failed: %v, additionally rollback failed: %v", Sig, mig.ID, err, rollErr)
 				}
-				return fmt.Errorf("%s: migration %d failed: %w", SigMigr, mig.ID, err)
+				return fmt.Errorf("%s up: migration %d failed: %w", Sig, mig.ID, err)
 			}
 		}
 
@@ -236,24 +197,24 @@ func (m *Migrator) up(migrations []Migration) error {
 		if _, err := tx.Exec(`INSERT INTO migrations (id, name) VALUES (?, ?)`, mig.ID, mig.Name); err != nil {
 			rollErr := tx.Rollback()
 			if rollErr != nil {
-				return fmt.Errorf("%s: failed to register migration %d: %v,SigMigr, additionally rollback failed: %v", SigMigr, mig.ID, err, rollErr)
+				return fmt.Errorf("%s up: failed to register migration %d: %v,Sig, additionally rollback failed: %v", Sig, mig.ID, err, rollErr)
 			}
-			return fmt.Errorf("%s: failed to register migration %d: %w", SigMigr, mig.ID, err)
+			return fmt.Errorf("%s up: failed to register migration %d: %w", Sig, mig.ID, err)
 		}
 
 		if err = tx.Commit(); err != nil {
-			return fmt.Errorf("%s: failed to commit migration %d: %w", SigMigr, mig.ID, err)
+			return fmt.Errorf("%s up: failed to commit migration %d: %w", Sig, mig.ID, err)
 		}
 	}
 
 	return nil
 }
 
-func (m *Migrator) down(migrations []Migration) error {
+func (h *sqlHandler) down(migrations []Migration) error {
 	for _, mig := range migrations {
-		tx, err := m.db.Begin()
+		tx, err := h.db.Begin()
 		if err != nil {
-			return fmt.Errorf("%s: failed to start transaction: %w", SigMigr, err)
+			return fmt.Errorf("%s down: failed to start transaction: %w", Sig, err)
 		}
 
 		// Ejecutar statements
@@ -266,9 +227,9 @@ func (m *Migrator) down(migrations []Migration) error {
 			if _, err := tx.Exec(fmt.Sprintf("%s;", s)); err != nil {
 				rollErr := tx.Rollback()
 				if rollErr != nil {
-					return fmt.Errorf("%s: migration %d rollback failed: %v,SigMigr, additionally transaction rollback failed: %v", SigMigr, mig.ID, err, rollErr)
+					return fmt.Errorf("%s down: migration %d rollback failed: %v,Sig, additionally transaction rollback failed: %v", Sig, mig.ID, err, rollErr)
 				}
-				return fmt.Errorf("%s: migration %d rollback failed: %w", SigMigr, mig.ID, err)
+				return fmt.Errorf("%s down: migration %d rollback failed: %w", Sig, mig.ID, err)
 			}
 		}
 
@@ -276,39 +237,39 @@ func (m *Migrator) down(migrations []Migration) error {
 		if _, err := tx.Exec(`DELETE from MIGRATIONS WHERE id = ?`, mig.ID); err != nil {
 			rollErr := tx.Rollback()
 			if rollErr != nil {
-				return fmt.Errorf("%s: failed to remove migration %d record: %v,SigMigr, additionally rollback failed: %v", SigMigr, mig.ID, err, rollErr)
+				return fmt.Errorf("%s down: failed to remove migration %d record: %v,Sig, additionally rollback failed: %v", Sig, mig.ID, err, rollErr)
 			}
-			return fmt.Errorf("%s: failed to remove migration %d record: %w", SigMigr, mig.ID, err)
+			return fmt.Errorf("%s down: failed to remove migration %d record: %w", Sig, mig.ID, err)
 		}
 
 		if err = tx.Commit(); err != nil {
-			return fmt.Errorf("%s: failed to commit migration %d rollback: %w", SigMigr, mig.ID, err)
+			return fmt.Errorf("%s down: failed to commit migration %d rollback: %w", Sig, mig.ID, err)
 		}
 	}
 
 	return nil
 }
 
-func (m *Migrator) Version() (int, error) {
-	if !isConnected(m.db) {
-		return 0, fmt.Errorf("%s: db in migrations is desconnected", SigMigr)
+func (h *sqlHandler) Version() (int, error) {
+	if !isConnected(h.db) {
+		return 0, fmt.Errorf("%s version: db in migrations is desconnected", Sig)
 	}
 
-	version, err := m.findLastID()
+	version, err := h.findMigrationLastID()
 	return version, err
 }
 
-func (m *Migrator) Move(steps int, inverse bool) error {
-	if !isConnected(m.db) {
-		return fmt.Errorf("%s: db in migrations is desconnected", SigMigr)
+func (h *sqlHandler) RunMigrations(steps int, inverse bool) error {
+	if !isConnected(h.db) {
+		return fmt.Errorf("%s run migrations: db in migrations is desconnected", Sig)
 	}
 	// Inicializar tabla de migraciones si no existe
-	if err := m.init(); err != nil {
-		return fmt.Errorf("%s: failed to initialize migrations: %w", SigMigr, err)
+	if err := h.initMigrations(); err != nil {
+		return fmt.Errorf("%s run migrations: failed to initialize migrations: %w", Sig, err)
 	}
 
 	// Cargar migraciones
-	migrations, err := m.load(*m.options.path, inverse, steps)
+	migrations, err := h.load(*h.options.path, inverse, steps)
 
 	if err != nil {
 		return err
@@ -316,19 +277,19 @@ func (m *Migrator) Move(steps int, inverse bool) error {
 
 	// Verificar si hay migraciones para ejecutar
 	if len(migrations) == 0 {
-		return fmt.Errorf("%s: no migrations to run", SigMigr)
+		return fmt.Errorf("%s run migrations: no migrations to run", Sig)
 	}
 
 	// Ejecutar migraciones según la dirección
 	if !inverse {
-		if err := m.up(migrations); err != nil {
-			return fmt.Errorf("%s: failed to run up migrations: %w", SigMigr, err)
+		if err := h.up(migrations); err != nil {
+			return fmt.Errorf("%s run migrations: failed to run up migrations: %w", Sig, err)
 		}
 		return nil
 	}
 
-	if err := m.down(migrations); err != nil {
-		return fmt.Errorf("%s: failed to run down migrations: %w", SigMigr, err)
+	if err := h.down(migrations); err != nil {
+		return fmt.Errorf("%s run migrations: failed to run down migrations: %w", Sig, err)
 	}
 	return nil
 }

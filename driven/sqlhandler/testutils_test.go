@@ -44,8 +44,8 @@ func AssertDBState(t *testing.T, dbPath string) {
 	}
 }
 
-func NewTestConnector(t *testing.T, stderr io.Writer) (*Connector, string) {
+func NewTestsqlHandler(t *testing.T, stderr io.Writer) (*sqlHandler, string) {
 	dbURL, dbPath := GenTestLibsqlDBPath(t)
-	c := NewConnector(stderr, WithURL(dbURL))
+	c := NewDataHandler(stderr, WithURL(dbURL))
 	return c, dbPath
 }

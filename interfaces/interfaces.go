@@ -1,19 +1,21 @@
 package interfaces
 
-type Migrator interface {
-	Version() (int, error)
-    Move(steps int, inverse bool) error
+import "context"
+
+type Starter interface {
+	Start(ctx context.Context) error
 }
 
-type Connector interface {
-    Connect(driver string) error 
-    Close() error
-    IsConnected() bool
+type GracefulStarter interface {
+    Starter
+    Shutdown(ctx context.Context) error
 }
 
 type DataHandler interface {
-	Connector
-	Migrator
+	GracefulStarter
+	Version() (int, error)
+	RunMigrations(steps int, inverse bool) error
+	IsConnected() bool
 }
 
 type Logger interface {
@@ -22,3 +24,4 @@ type Logger interface {
 	Warn(msg string, args ...any)
 	Error(msg string, args ...any)
 }
+

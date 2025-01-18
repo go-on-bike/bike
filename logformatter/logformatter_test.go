@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-on-bike/bike/driven/sqlhandler"
 	"github.com/go-on-bike/bike/tester"
 	_ "github.com/tursodatabase/go-libsql"
 )
@@ -15,30 +16,34 @@ import (
 func TestLogFormatter_Integration(t *testing.T) {
 	stderr := &bytes.Buffer{}
 
-	formatter, errChan := NewLogFormatter(stderr, nil, false, 0)
+	formatter, errChan := NewlogFormatter(stderr, nil, false, 0)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Run two operations: one in a different go routine
-	go func() {
-		err := formatter.Start(ctx)
-		if err != nil {
-			t.Errorf("start failed: %v", err)
-		}
-	}()
+	dbURL, _ := tester.GenTestLibsqlDBPath(t)
+	h := sqlhandler.NewDataHandler(formatter, sqlhandler.WithURL(dbURL), sqlhandler.WithDriver("libsql"))
 
-	connecter, _ := tester.NewTestConnector(t, formatter)
-	errChan <- connecter.Connect("libsql")
-	errChan <- connecter.Connect("libsql")
-	connecter.DB()
-	connecter.IsConnected()
-	errChan <- connecter.Close()
-	connecter.IsConnected()
+	// Nos aseguramos de que la conexión se cierre al finalizar
+	t.Cleanup(func() {
+		// Cancelamos el contexto para iniciar el shutdown
+		cancel()
+		// Esperamos un poco para que el shutdown se complete
+		time.Sleep(100 * time.Millisecond)
+	})
+
+    errChan <- formatter.Start(ctx)
+	errChan <- h.Start(ctx)
+	h.QueryDB()
+	h.IsConnected()
+	cancel()
+	h.IsConnected()
+
 	time.Sleep(time.Millisecond * 100)
 
 	logs := stderr.String()
+    t.Log(logs)
 	if len(logs) == 0 {
 		t.Errorf("final stream is empty")
 	}
